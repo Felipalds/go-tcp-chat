@@ -2,7 +2,8 @@ package tcp
 
 import (
 	"fmt"
-	"go-tcp-chat/user"
+	"go-tcp-chat/services"
+	"go-tcp-chat/utils"
 	"net"
 	"strings"
 )
@@ -10,13 +11,13 @@ import (
 func HandleClient(conn net.Conn, a *int) {
 	*a += 1
 	b := *a
-	fmt.Println("Handle connection ", *a)
+	fmt.Println("Handle connection %d", b)
 	defer conn.Close()
 	buffer := make([]byte, 1024) // Create a buffer to read data into
 
 	for {
 		// Read data from the client
-		n, err := conn.Read(buffer)
+		_, err := conn.Read(buffer)
 		if err != nil {
 			fmt.Println("Error:", err)
 			return
@@ -25,28 +26,28 @@ func HandleClient(conn net.Conn, a *int) {
 		buff_str := string(buffer)
 		buff_parts := strings.Split(buff_str, " ")
 
-		if len(buff_parts) == 0 {
+		if !utils.IsRequestValid(buff_parts) {
 			fmt.Fprintf(conn, "ERRO: faltou passar argumentos")
-			return
 		}
 
-		if buff_parts[0] == "REGISTRO" {
-			msg, err := user.HandleUserRegister(buff_parts)
-			if err != nil {
-				fmt.Fprintf(conn, msg)
-			}
+		buff_parts[len(buff_parts)-1] = strings.ReplaceAll(buff_parts[len(buff_parts)-1], "\x00", "")
+		requestType := strings.ToUpper(buff_parts[0])
+
+		switch requestType {
+		case "REGISTRO":
+			user, _ := services.NewUser(buff_parts)
+			msg, _ := services.HandleUserRegister(user)
 			fmt.Fprintf(conn, msg)
-		}
-		//
-		//if buff_parts[0] == "CRIAR_SALA" {
-		//	if len(buff_parts) < 4 {
-		//		fmt.Fprintf(conn, "ERRO: faltou passar argumento")
-		//		return
-		//	}
-		//	fmt.Println("Criando sala %", buff_parts[1])
-		//}
+		case "AUTENTICACAO":
+			user, _ := services.NewUser(buff_parts)
+			msg, _ := services.HandleUserAuthentication(user)
+			fmt.Fprintf(conn, msg)
+		case "CRIAR_SALA":
+			fmt.Println("Criando sala %", buff_parts[1])
 
-		// Process and use the data (here, we'll just print it)
-		fmt.Printf("Received %d %d bytes: %s\n", b, n, buffer[:n])
+		default:
+			fmt.Fprintf(conn, "ERRO: envie uma request válida\n")
+		}
+
 	}
 }
