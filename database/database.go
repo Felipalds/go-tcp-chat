@@ -5,14 +5,22 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"strings"
 	"sync"
 
+	_ "embed"
 	_ "github.com/mattn/go-sqlite3" //não sei o que esse _ significa
 )
 
 // SINGLETON!!! :D
 var lock = &sync.Mutex{}
 var databaseInstance *sql.DB
+
+//go:embed database.sql
+var databaseQuery string
+
+//go:embed trigger.sql
+var trigger string
 
 func GetDB() *sql.DB {
 	if databaseInstance == nil {
@@ -51,15 +59,26 @@ func OpenDB() (*sql.DB, error) {
 }
 
 func Init(db *sql.DB) error {
-	stmt, err := db.Prepare("CREATE TABLE IF NOT EXISTS users (id integer not null primary key, name varchar(255) unique)")
-	if err != nil {
-		log.Fatal("Error preparing statement:", err)
-	}
-	defer stmt.Close()
 
-	_, err = stmt.Exec()
-	if err != nil {
-		fmt.Println("Error executing statement:", err)
+	queries := strings.Split(databaseQuery, ";")
+	for _, query := range queries {
+		query = strings.TrimSpace(query)
+		if query == "" {
+			continue
+		}
+		_, err := db.Exec(query)
+		if err != nil {
+			return fmt.Errorf("Error executing query: %v", err)
+		}
 	}
-	return err
+
+	trigg := strings.TrimSpace(trigger)
+	_, err := db.Exec(trigg)
+	fmt.Println(trigg)
+	if err != nil {
+		return fmt.Errorf("Error executing trigger: %v", err)
+	}
+
+	fmt.Println("Database initialized")
+	return nil
 }

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"go-tcp-chat/database"
 	"go-tcp-chat/models"
+	"go-tcp-chat/utils"
 )
 
 func NewUser(params []string) (models.User, error) {
@@ -22,14 +23,14 @@ func HandleUserRegister(user models.User) (string, error) {
 		fmt.Println(err)
 	}
 	if id == 0 {
-		MESSAGE = "ERROR : user already exists\n"
+		MESSAGE = utils.USER_ALREADY_EXISTS_MESSAGE
 	} else {
-		MESSAGE = "USER REGISTRED\n"
+		MESSAGE = utils.USER_REGISTERED_MESSAGE
 	}
 	return MESSAGE, nil
 }
 
-func HandleUserAuthentication(user models.User) (string, error) {
+func HandleUserAuthentication(user models.User) (models.User, string, error) {
 	MESSAGE := ""
 	loggedUser, err := database.GetUserByName(user.Name)
 	if err != nil {
@@ -37,9 +38,9 @@ func HandleUserAuthentication(user models.User) (string, error) {
 	}
 	fmt.Println(loggedUser)
 	if loggedUser.Name == "" {
-		MESSAGE = "ERROR : user does not exists\n"
+		MESSAGE = utils.USER_DOES_NOT_EXISTS_MESSAGE
 	} else {
-		MESSAGE = "USER LOGGED IN\n"
+		MESSAGE = utils.USER_LOGGED_MESSAGE
 	}
-	return MESSAGE, nil
+	return *loggedUser, MESSAGE, nil
 }

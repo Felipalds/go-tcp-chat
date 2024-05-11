@@ -2,8 +2,8 @@ package main
 
 import (
 	"fmt"
+	"go-tcp-chat/controllers"
 	"go-tcp-chat/database"
-	"go-tcp-chat/tcp"
 	"net"
 )
 
@@ -33,6 +33,6 @@ func main() {
 		}
 
 		// go routine here
-		go tcp.HandleClient(conn, &a)
+		go controllers.HandleClient(conn, &a)
 	}
 }
