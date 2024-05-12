@@ -1,12 +1,12 @@
 package models
 
 type User struct {
-	Id   int
+	Id   int64
 	Name string
 }
 
 type Room struct {
-	Id       int
+	Id       int64
 	Name     string
 	Type     string
 	Password string
@@ -14,9 +14,9 @@ type Room struct {
 }
 
 type Message struct {
-	Id      int
+	Id      int64
 	content string
-	UserId  int
-	RoomId  int
-	Time    int
+	UserId  int64
+	RoomId  int64
+	Time    int64
 }

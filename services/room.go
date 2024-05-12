@@ -6,6 +6,7 @@ import (
 	"go-tcp-chat/database"
 	"go-tcp-chat/models"
 	"go-tcp-chat/utils"
+	"strings"
 )
 
 func NewRoom(params []string, user models.User) (models.Room, error) {
@@ -17,7 +18,7 @@ func NewRoom(params []string, user models.User) (models.Room, error) {
 		err = errors.New(utils.INVALID_ROOM_ARGUMENTS_MESSAGE)
 	}
 
-	roomType := params[1]
+	roomType := strings.ToUpper(params[1])
 	name := params[2]
 
 	if roomType != "PUBLICA" && len(params) != 4 {
@@ -45,17 +46,26 @@ func HandleRoomRegister(room models.Room) (string, error) {
 	return MESSAGE, nil
 }
 
-//func HandleUserAuthentication(user models.User) (string, error) {
-//	MESSAGE := ""
-//	loggedUser, err := database.GetUserByName(user.Name)
-//	if err != nil {
-//		fmt.Println(err)
-//	}
-//	fmt.Println(loggedUser)
-//	if loggedUser.Name == "" {
-//		MESSAGE = "ERROR : user does not exists\n"
-//	} else {
-//		MESSAGE = "USER LOGGED IN\n"
-//	}
-//	return MESSAGE, nil
-//}
+func HandleRoomJoin(buffParts []string, user models.User) (string, error) {
+	name := buffParts[1]
+	var password string
+	existedRoom, err := database.GetRoomByName(name)
+	if existedRoom == nil || err != nil {
+		return utils.ROOM_DOES_NOT_EXISTS_MESSAGE, err
+	}
+	if existedRoom.Type == "PRIVADA" {
+		if len(buffParts) < 3 {
+			return "PLEASE PROVIDE PASSWORD", nil
+		}
+		password = buffParts[2]
+		if password != existedRoom.Password {
+			return "INVALID PASSWORD", nil
+		}
+	}
+
+	err2 := database.AddUserToRoom(user.Id, existedRoom.Id)
+	if err2 != nil {
+		return "ERROR ADDING USER TO ROOM\n", err2
+	}
+	return utils.USER_INSERTED_INTO_ROOM_MESSAGE, nil
+}

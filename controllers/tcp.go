@@ -40,6 +40,13 @@ func HandleClient(conn net.Conn, a *int) {
 	}
 }
 
+func isLoggedIn(currentUser *models.User) bool {
+	if currentUser == nil || currentUser.Name == "" {
+		return false
+	}
+	return true
+}
+
 func HandleRequest(buffParts []string, currentUser *models.User) (string, error) {
 	requestType := strings.ToUpper(buffParts[0])
 	var msg string
@@ -59,13 +66,19 @@ func HandleRequest(buffParts []string, currentUser *models.User) (string, error)
 		msg = utils.USER_LOGGED_OUT_MESSAGE
 
 	case "CRIAR_SALA":
-		if currentUser == nil || currentUser.Name == "" {
+		if !isLoggedIn(currentUser) {
 			msg = utils.LOG_IN_FIRST_MESSAGE
 			break
 		}
 		room, _ := services.NewRoom(buffParts, *currentUser)
 		msg, err = services.HandleRoomRegister(room)
 
+	case "ENTRAR_SALA":
+		if !isLoggedIn(currentUser) {
+			msg = utils.LOG_IN_FIRST_MESSAGE
+			break
+		}
+		msg, _ = services.HandleRoomJoin(buffParts, *currentUser)
 	default:
 		msg = "REQUEST INVÁLIDA"
 	}
