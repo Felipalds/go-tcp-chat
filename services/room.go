@@ -19,14 +19,14 @@ func NewRoom(params []string, user models.User) (models.Room, error) {
 	}
 
 	roomType := strings.ToUpper(params[1])
-	name := params[2]
+	name := strings.ReplaceAll(params[2], "\n", "")
 
 	if roomType != "PUBLICA" && len(params) != 4 {
 		err = errors.New(utils.ROOM_PASSWORD_NOT_PROVIDED_MESSAGE)
 	}
 
 	if len(params) == 4 {
-		password = params[3]
+		password = strings.ReplaceAll(params[3], "\n", "")
 	}
 
 	return models.Room{Name: name, Type: roomType, Password: password, Admin: user}, err
@@ -46,19 +46,13 @@ func HandleRoomRegister(room models.Room) (string, error) {
 	return MESSAGE, nil
 }
 
-func HandleRoomJoin(buffParts []string, user models.User) (string, error) {
-	name := buffParts[1]
-	var password string
-	existedRoom, err := database.GetRoomByName(name)
+func HandleRoomJoin(room models.Room, user models.User) (string, error) {
+	existedRoom, err := database.GetRoomByName(room.Name)
 	if existedRoom == nil || err != nil {
 		return utils.ROOM_DOES_NOT_EXISTS_MESSAGE, err
 	}
 	if existedRoom.Type == "PRIVADA" {
-		if len(buffParts) < 3 {
-			return "PLEASE PROVIDE PASSWORD", nil
-		}
-		password = buffParts[2]
-		if password != existedRoom.Password {
+		if room.Password != existedRoom.Password {
 			return "INVALID PASSWORD", nil
 		}
 	}

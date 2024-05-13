@@ -2,6 +2,7 @@ package controllers
 
 import (
 	"fmt"
+	"go-tcp-chat/database"
 	"go-tcp-chat/models"
 	"go-tcp-chat/services"
 	"go-tcp-chat/utils"
@@ -13,6 +14,7 @@ func HandleClient(conn net.Conn, a *int) {
 	*a += 1
 	b := *a
 	var user models.User
+
 	fmt.Println("Handle connection %d", b)
 	defer conn.Close()
 	buffer := make([]byte, 1024) // Create a buffer to read data into
@@ -33,10 +35,9 @@ func HandleClient(conn net.Conn, a *int) {
 		}
 
 		buffParts[len(buffParts)-1] = strings.ReplaceAll(buffParts[len(buffParts)-1], "\x00", "")
-		msg, _ := HandleRequest(buffParts, &user)
+		msg, _ := HandleRequest(&conn, buffParts, &user)
 		fmt.Fprintf(conn, msg)
 		buffer = make([]byte, 1024)
-
 	}
 }
 
@@ -47,7 +48,7 @@ func isLoggedIn(currentUser *models.User) bool {
 	return true
 }
 
-func HandleRequest(buffParts []string, currentUser *models.User) (string, error) {
+func HandleRequest(conn *net.Conn, buffParts []string, currentUser *models.User) (string, error) {
 	requestType := strings.ToUpper(buffParts[0])
 	var msg string
 	var err error
@@ -72,13 +73,25 @@ func HandleRequest(buffParts []string, currentUser *models.User) (string, error)
 		}
 		room, _ := services.NewRoom(buffParts, *currentUser)
 		msg, err = services.HandleRoomRegister(room)
+		InsertUserIntoRoom(*conn, *currentUser, room)
 
 	case "ENTRAR_SALA":
 		if !isLoggedIn(currentUser) {
 			msg = utils.LOG_IN_FIRST_MESSAGE
 			break
 		}
-		msg, _ = services.HandleRoomJoin(buffParts, *currentUser)
+		// TODO: achar uma maneira melhor de fazer os replace all e de lidar com os buffParts
+		room, _ := database.GetRoomByName(strings.ReplaceAll(buffParts[1], "\n", ""))
+		msg, _ = services.HandleRoomJoin(*room, *currentUser)
+		InsertUserIntoRoom(*conn, *currentUser, *room)
+
+	case "ENVIAR_MSG":
+		if !isLoggedIn(currentUser) {
+			msg = utils.LOG_IN_FIRST_MESSAGE
+			break
+		}
+		roomName := strings.ReplaceAll(buffParts[1], " ", "")
+		Broadcast(buffParts[2:], roomName, *currentUser)
 	default:
 		msg = "REQUEST INVÁLIDA"
 	}
