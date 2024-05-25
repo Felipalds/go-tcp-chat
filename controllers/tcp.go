@@ -1,6 +1,10 @@
 package controllers
 
 import (
+	"crypto/rand"
+	"crypto/rsa"
+	"crypto/x509"
+	"encoding/base64"
 	"fmt"
 	"go-tcp-chat/database"
 	"go-tcp-chat/models"
@@ -17,10 +21,9 @@ func HandleClient(conn net.Conn, a *int) {
 
 	fmt.Println("Handle connection %d", b)
 	defer conn.Close()
-	buffer := make([]byte, 1024) // Create a buffer to read data into
+	buffer := make([]byte, 2048)
 
 	for {
-		// Read data from the client
 		_, err := conn.Read(buffer)
 		if err != nil {
 			fmt.Println("Error:", err)
@@ -37,7 +40,7 @@ func HandleClient(conn net.Conn, a *int) {
 		buffParts[len(buffParts)-1] = strings.ReplaceAll(buffParts[len(buffParts)-1], "\x00", "")
 		msg, _ := HandleRequest(&conn, buffParts, &user)
 		fmt.Fprintf(conn, msg)
-		buffer = make([]byte, 1024)
+		buffer = make([]byte, 2048)
 	}
 }
 
@@ -46,6 +49,14 @@ func isLoggedIn(currentUser *models.User) bool {
 		return false
 	}
 	return true
+}
+
+func generateKeys() (*rsa.PrivateKey, *rsa.PublicKey, error) {
+	privateKey, err := rsa.GenerateKey(rand.Reader, 1024)
+	if err != nil {
+		return nil, nil, err
+	}
+	return privateKey, &privateKey.PublicKey, nil
 }
 
 func HandleRequest(conn *net.Conn, buffParts []string, currentUser *models.User) (string, error) {
@@ -63,7 +74,27 @@ func HandleRequest(conn *net.Conn, buffParts []string, currentUser *models.User)
 		userLoggin, _ := services.NewUser(buffParts)
 		var userLogged models.User
 		userLogged, msg, _ = services.HandleUserAuthentication(userLoggin)
+
+		privateKey, publicKey, err2 := generateKeys()
+		if err2 != nil {
+			msg = "ERRO ao gerar chaves do usuário"
+			fmt.Println(msg)
+			break
+		}
+
+		NewClient(*conn, userLogged, privateKey)
+		publicKeyBytes, err3 := x509.MarshalPKIXPublicKey(publicKey)
+		if err3 != nil {
+			msg = "ERRO ao gerar chaves"
+		}
+		encodedKey := base64.StdEncoding.EncodeToString(publicKeyBytes)
+		msg = "CHAVE_PUBLICA " + encodedKey + "\n"
 		*currentUser = userLogged
+
+	case "CHAVE_SIMETRICA":
+		fmt.Println(buffParts)
+		aesKey := buffParts[1]
+		fmt.Println("CHAVE_SIMETRICA", aesKey)
 
 	case "SAIR":
 		*currentUser = models.User{}

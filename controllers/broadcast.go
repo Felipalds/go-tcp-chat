@@ -1,6 +1,7 @@
 package controllers
 
 import (
+	"crypto/rsa"
 	"fmt"
 	"go-tcp-chat/models"
 	"net"
@@ -11,6 +12,7 @@ type Client struct {
 	conn  net.Conn
 	user  models.User
 	rooms []models.Room
+	pk    *rsa.PrivateKey
 }
 
 var (
@@ -41,6 +43,16 @@ func InsertUserIntoRoom(conn net.Conn, user models.User, room models.Room) {
 	var newClient = &Client{conn: conn, user: user, rooms: []models.Room{}}
 	newClient.rooms = append(newClient.rooms, room)
 	clients = append(clients, newClient)
+}
+
+func NewClient(conn net.Conn, user models.User, pk *rsa.PrivateKey) {
+	clientsMu.Lock()
+	var newClient Client
+	newClient.conn = conn
+	newClient.user = user
+	newClient.pk = pk
+	clients = append(clients, &newClient)
+	clientsMu.Unlock()
 }
 
 func Broadcast(message []string, roomName string, sender models.User) {
