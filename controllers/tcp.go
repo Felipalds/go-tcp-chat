@@ -56,6 +56,9 @@ func HandleRequest(conn *net.Conn, buffParts []string, currentUser *models.User)
 	case "REGISTRO":
 		user, _ := services.NewUser(buffParts)
 		msg, err = services.HandleUserRegister(user)
+		if err != nil {
+			*currentUser = user
+		}
 	case "AUTENTICACAO":
 		userLoggin, _ := services.NewUser(buffParts)
 		var userLogged models.User
