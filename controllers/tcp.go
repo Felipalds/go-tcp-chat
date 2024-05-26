@@ -33,16 +33,12 @@ func HandleClient(conn net.Conn, a *int) {
 		buffStr := string(buffer)
 		buffStr = strings.Trim(buffStr, "\r\n")
 		buffStr = strings.ReplaceAll(buffStr, "\x00", "")
-		fmt.Println(len(buffStr))
 		if auth {
-			fmt.Println("Buff str", buffStr)
 			buffStr, err = encrypt.Decrypt(buffStr, aesKey)
-			fmt.Println("Buff str decytp", buffStr)
 			if err != nil {
 				fmt.Println("Error:", err)
 				panic(err)
 			}
-			fmt.Println(buffStr)
 		}
 
 		buffParts := strings.Split(buffStr, " ")
@@ -51,8 +47,8 @@ func HandleClient(conn net.Conn, a *int) {
 		}
 
 		buffParts[len(buffParts)-1] = strings.ReplaceAll(buffParts[len(buffParts)-1], "\x00", "")
-		fmt.Println(buffParts)
 		msg, _ := HandleRequest(&conn, buffParts, &user, &pk, &aesKey, &auth)
+		fmt.Println(msg)
 		fmt.Fprintf(conn, msg)
 		buffer = make([]byte, 2048)
 	}

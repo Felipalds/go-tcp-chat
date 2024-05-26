@@ -14,16 +14,17 @@ import (
 
 func HandleRequest(conn *net.Conn, buffParts []string, currentUser *models.User, pk **rsa.PrivateKey, aesKey *[]byte, auth *bool) (string, error) {
 	requestType := strings.ToUpper(buffParts[0])
-	fmt.Println(requestType)
 	var msg string
 	var err error
 	switch requestType {
 	case "REGISTRO":
-		user, _ := services.NewUser(buffParts)
+		user, err := services.NewUser(buffParts)
+
 		msg, err = services.HandleUserRegister(user)
 		if err != nil {
-			*currentUser = user
 		}
+		*currentUser = user
+		msg = "REGISTRO_OK"
 	case "AUTENTICACAO":
 		userLoggin, _ := services.NewUser(buffParts)
 		var userLogged models.User
@@ -50,8 +51,8 @@ func HandleRequest(conn *net.Conn, buffParts []string, currentUser *models.User,
 	case "CHAVE_SIMETRICA":
 		aesKeyEncrypted := buffParts[1]
 		*aesKey = encrypt.DecryptAESKey(aesKeyEncrypted, *pk)
-		fmt.Println(aesKey)
 		*auth = true
+		msg = "AUTENTICACAO_OK\n"
 	case "SAIR":
 		*currentUser = models.User{}
 		msg = utils.USER_LOGGED_OUT_MESSAGE
