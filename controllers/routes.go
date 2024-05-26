@@ -4,6 +4,7 @@ import (
 	"crypto/rsa"
 	"fmt"
 	"go-tcp-chat/database"
+	"go-tcp-chat/encrypt"
 	"go-tcp-chat/models"
 	"go-tcp-chat/services"
 	"go-tcp-chat/utils"
@@ -11,8 +12,9 @@ import (
 	"strings"
 )
 
-func HandleRequest(conn *net.Conn, buffParts []string, currentUser *models.User, pk **rsa.PrivateKey) (string, error) {
+func HandleRequest(conn *net.Conn, buffParts []string, currentUser *models.User, pk **rsa.PrivateKey, aesKey *[]byte, auth *bool) (string, error) {
 	requestType := strings.ToUpper(buffParts[0])
+	fmt.Println(requestType)
 	var msg string
 	var err error
 	switch requestType {
@@ -27,7 +29,7 @@ func HandleRequest(conn *net.Conn, buffParts []string, currentUser *models.User,
 		var userLogged models.User
 		userLogged, msg, _ = services.HandleUserAuthentication(userLoggin)
 
-		privateKey, _, err2 := GenerateKeys()
+		privateKey, _, err2 := encrypt.GenerateKeys()
 		if err2 != nil {
 			msg = "ERRO ao gerar chaves do usuário"
 			fmt.Println(msg)
@@ -35,32 +37,38 @@ func HandleRequest(conn *net.Conn, buffParts []string, currentUser *models.User,
 		}
 
 		*pk = privateKey
-		fmt.Println("Public Key", (*pk).PublicKey)
 		NewClient(*conn, userLogged, privateKey)
 
-		encodedKey, err2 := EncodePublicToBase64(privateKey)
+		encodedKey, err2 := encrypt.EncodePublicToBase64(privateKey)
 		if err2 != nil {
 			fmt.Println(err2)
 			break
 		}
-		fmt.Println("PUBLIC ENCODED", encodedKey)
 		msg = "CHAVE_PUBLICA " + encodedKey + "\n"
 		*currentUser = userLogged
 
 	case "CHAVE_SIMETRICA":
-		aesKey := buffParts[1]
-		DecryptAESKey(aesKey, *pk)
+		aesKeyEncrypted := buffParts[1]
+		*aesKey = encrypt.DecryptAESKey(aesKeyEncrypted, *pk)
+		fmt.Println(aesKey)
+		*auth = true
 	case "SAIR":
 		*currentUser = models.User{}
 		msg = utils.USER_LOGGED_OUT_MESSAGE
 
 	case "CRIAR_SALA":
+		fmt.Println("Criando sala")
 		if !utils.IsLoggedIn(currentUser) {
 			msg = utils.LOG_IN_FIRST_MESSAGE
 			break
 		}
-		room, _ := services.NewRoom(buffParts, *currentUser)
-		msg, err = services.HandleRoomRegister(room)
+		room, err2 := services.NewRoom(buffParts, *currentUser)
+		if err2 != nil {
+			fmt.Println(err2)
+			break
+		}
+		msg, _ = services.HandleRoomRegister(room)
+
 		InsertUserIntoRoom(*conn, *currentUser, room)
 
 	case "ENTRAR_SALA":
