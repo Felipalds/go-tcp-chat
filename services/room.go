@@ -10,19 +10,19 @@ import (
 )
 
 func NewRoom(params []string, user models.User) (models.Room, error) {
-	// TODO: REFACTOR THIS FILE! AND CORRECT THE ERRORS
 	var err error
 	var password string
+	var newRoom models.Room
 
 	if len(params) < 3 || len(params) > 4 {
-		err = errors.New(utils.INVALID_ROOM_ARGUMENTS_MESSAGE)
+		return newRoom, errors.New(utils.INVALID_ROOM_ARGUMENTS_MESSAGE)
 	}
 
 	roomType := strings.ToUpper(params[1])
 	name := strings.ReplaceAll(params[2], "\n", "")
 
-	if roomType != "PUBLICA" && len(params) != 4 {
-		err = errors.New(utils.ROOM_PASSWORD_NOT_PROVIDED_MESSAGE)
+	if roomType == "PRIVADA" && len(params) != 4 {
+		return newRoom, errors.New(utils.ROOM_PASSWORD_NOT_PROVIDED_MESSAGE)
 	}
 
 	if len(params) == 4 {
@@ -62,4 +62,16 @@ func HandleRoomJoin(room models.Room, user models.User) (string, error) {
 		return "ERROR ADDING USER TO ROOM\n", err2
 	}
 	return utils.USER_INSERTED_INTO_ROOM_MESSAGE, nil
+}
+
+func GetRooms() (string, error) {
+	msg := "SALAS "
+	rooms, err := database.GetRooms()
+	if err != nil {
+		return "", err
+	}
+	for _, room := range rooms {
+		msg += room.Name + " "
+	}
+	return msg, nil
 }

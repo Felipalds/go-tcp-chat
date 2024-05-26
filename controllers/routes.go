@@ -14,21 +14,33 @@ import (
 
 func HandleRequest(conn *net.Conn, buffParts []string, currentUser *models.User, pk **rsa.PrivateKey, aesKey *[]byte, auth *bool) (string, error) {
 	requestType := strings.ToUpper(buffParts[0])
+	requestType = strings.ReplaceAll(requestType, "\n", "")
+	fmt.Println("Logs for request: ", requestType) //dont remove
 	var msg string
 	var err error
 	switch requestType {
 	case "REGISTRO":
 		user, err := services.NewUser(buffParts)
+		if err != nil {
+			return "", err
+		}
 
 		msg, err = services.HandleUserRegister(user)
 		if err != nil {
+			return "", err
 		}
-		*currentUser = user
-		msg = "REGISTRO_OK"
+		msg = "REGISTRO_OK\n"
 	case "AUTENTICACAO":
-		userLoggin, _ := services.NewUser(buffParts)
-		var userLogged models.User
-		userLogged, msg, _ = services.HandleUserAuthentication(userLoggin)
+		userLoggin, err := services.NewUser(buffParts)
+		if err != nil {
+			fmt.Println(err)
+			return "", err
+		}
+		userLogged, err := services.HandleUserAuthentication(userLoggin)
+		if err != nil {
+			fmt.Println(err)
+			return "", err
+		}
 
 		privateKey, _, err2 := encrypt.GenerateKeys()
 		if err2 != nil {
@@ -38,49 +50,64 @@ func HandleRequest(conn *net.Conn, buffParts []string, currentUser *models.User,
 		}
 
 		*pk = privateKey
-		NewClient(*conn, userLogged, privateKey)
+		NewClient(*conn, *userLogged, privateKey)
 
 		encodedKey, err2 := encrypt.EncodePublicToBase64(privateKey)
 		if err2 != nil {
 			fmt.Println(err2)
 			break
 		}
-		msg = "CHAVE_PUBLICA " + encodedKey + "\n"
-		*currentUser = userLogged
+
+		msg = "CHAVE_PUBLICA " + encodedKey
+		*currentUser = *userLogged
+		fmt.Println(currentUser)
 
 	case "CHAVE_SIMETRICA":
 		aesKeyEncrypted := buffParts[1]
 		*aesKey = encrypt.DecryptAESKey(aesKeyEncrypted, *pk)
 		*auth = true
-		msg = "AUTENTICACAO_OK\n"
+		msg = "AUTENTICACAO_OK"
 	case "SAIR":
 		*currentUser = models.User{}
 		msg = utils.USER_LOGGED_OUT_MESSAGE
 
 	case "CRIAR_SALA":
-		fmt.Println("Criando sala")
+		fmt.Println("Criando sala...")
 		if !utils.IsLoggedIn(currentUser) {
-			msg = utils.LOG_IN_FIRST_MESSAGE
-			break
+			return utils.LOG_IN_FIRST_MESSAGE, nil
 		}
-		room, err2 := services.NewRoom(buffParts, *currentUser)
-		if err2 != nil {
-			fmt.Println(err2)
-			break
+		room, err := services.NewRoom(buffParts, *currentUser)
+		if err != nil {
+			fmt.Println(err)
+			return "", err
 		}
-		msg, _ = services.HandleRoomRegister(room)
+		msg, err = services.HandleRoomRegister(room)
+		if err != nil {
+			fmt.Println(err)
+			return "", err
+		}
 
-		InsertUserIntoRoom(*conn, *currentUser, room)
+		//InsertUserIntoRoom(*conn, *currentUser, room)
 
 	case "ENTRAR_SALA":
 		if !utils.IsLoggedIn(currentUser) {
-			msg = utils.LOG_IN_FIRST_MESSAGE
-			break
+			return utils.LOG_IN_FIRST_MESSAGE, nil
 		}
 		// TODO: achar uma maneira melhor de fazer os replace all e de lidar com os buffParts
 		room, _ := database.GetRoomByName(strings.ReplaceAll(buffParts[1], "\n", ""))
 		msg, _ = services.HandleRoomJoin(*room, *currentUser)
 		InsertUserIntoRoom(*conn, *currentUser, *room)
+
+	case "LISTAR_SALAS":
+		if !utils.IsLoggedIn(currentUser) {
+			return utils.LOG_IN_FIRST_MESSAGE, nil
+		}
+		rooms, err := services.GetRooms()
+		if err != nil {
+			fmt.Println(err)
+			return "", err
+		}
+		return rooms, nil
 
 	case "ENVIAR_MSG":
 		if !utils.IsLoggedIn(currentUser) {

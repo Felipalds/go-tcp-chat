@@ -30,17 +30,14 @@ func HandleUserRegister(user models.User) (string, error) {
 	return MESSAGE, nil
 }
 
-func HandleUserAuthentication(user models.User) (models.User, string, error) {
-	MESSAGE := ""
+func HandleUserAuthentication(user models.User) (*models.User, error) {
 	loggedUser, err := database.GetUserByName(user.Name)
 	if err != nil {
 		fmt.Println(err)
 	}
-	fmt.Println(loggedUser)
 	if loggedUser.Name == "" {
-		MESSAGE = utils.USER_DOES_NOT_EXISTS_MESSAGE
+		return nil, errors.New(utils.USER_DOES_NOT_EXISTS_MESSAGE)
 	} else {
-		MESSAGE = utils.USER_LOGGED_MESSAGE
+		return loggedUser, nil
 	}
-	return *loggedUser, MESSAGE, nil
 }
