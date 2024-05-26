@@ -87,7 +87,12 @@ func HandleRequest(conn *net.Conn, buffParts []string, currentUser *models.User,
 			return "", err
 		}
 
-		//InsertUserIntoRoom(*conn, *currentUser, room)
+		err = InsertUserIntoRoom(*currentUser, room)
+		if err != nil {
+			return "", err
+		}
+
+		return utils.ROOM_CREATED_SUCCESS_MESSAGE, nil
 
 	case "ENTRAR_SALA":
 		if !utils.IsLoggedIn(currentUser) {
@@ -96,7 +101,11 @@ func HandleRequest(conn *net.Conn, buffParts []string, currentUser *models.User,
 		// TODO: achar uma maneira melhor de fazer os replace all e de lidar com os buffParts
 		room, _ := database.GetRoomByName(strings.ReplaceAll(buffParts[1], "\n", ""))
 		msg, _ = services.HandleRoomJoin(*room, *currentUser)
-		InsertUserIntoRoom(*conn, *currentUser, *room)
+		err = InsertUserIntoRoom(*currentUser, *room)
+		if err != nil {
+			return "", err
+		}
+		return "ENTRAR_SALA_OK", nil
 
 	case "LISTAR_SALAS":
 		if !utils.IsLoggedIn(currentUser) {
