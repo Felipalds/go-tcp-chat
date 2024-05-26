@@ -64,3 +64,11 @@ func Decrypt(cipherText string, keyBytes []byte) (string, error) {
 
 	return string(plainTextBytes), nil
 }
+func GenerateAESKey() ([]byte, error) {
+	key := make([]byte, 32) // 32 bytes for AES-256
+	if _, err := io.ReadFull(rand.Reader, key); err != nil {
+		panic(err.Error())
+	}
+
+	return key, nil
+}
