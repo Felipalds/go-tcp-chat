@@ -46,22 +46,41 @@ func HandleRoomRegister(room models.Room) (string, error) {
 	return MESSAGE, nil
 }
 
-func HandleRoomJoin(room models.Room, user models.User) (string, error) {
-	existedRoom, err := database.GetRoomByName(room.Name)
-	if existedRoom == nil || err != nil {
-		return utils.ROOM_DOES_NOT_EXISTS_MESSAGE, err
+func HandleRoomJoin(buffParts []string, user models.User) (models.Room, error) {
+
+	roomName := ""
+	roomPassword := ""
+	var room models.Room
+
+	if len(buffParts) < 2 || len(buffParts) > 3 {
+		return room, errors.New("invalid")
 	}
+
+	if len(buffParts) == 3 {
+		roomPassword = buffParts[2]
+	}
+
+	roomName = buffParts[1]
+	roomName = strings.ReplaceAll(roomName, "\n", "")
+
+	existedRoom, err := database.GetRoomByName(roomName)
+	if existedRoom == nil || err != nil {
+		return room, errors.New(utils.ROOM_DOES_NOT_EXISTS_MESSAGE)
+	}
+	room = *existedRoom
 	if existedRoom.Type == "PRIVADA" {
-		if room.Password != existedRoom.Password {
-			return "INVALID PASSWORD", nil
+		fmt.Println(existedRoom.Password, roomPassword)
+		if existedRoom.Password != roomPassword {
+
+			return room, errors.New("Invalid password")
 		}
 	}
 
 	err2 := database.AddUserToRoom(user.Id, existedRoom.Id)
 	if err2 != nil {
-		return "ERROR ADDING USER TO ROOM\n", err2
+		return room, errors.New("Error adding user to room")
 	}
-	return utils.USER_INSERTED_INTO_ROOM_MESSAGE, nil
+	return room, nil
 }
 
 func GetRooms() (string, error) {

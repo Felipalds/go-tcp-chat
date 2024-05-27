@@ -3,7 +3,6 @@ package controllers
 import (
 	"crypto/rsa"
 	"fmt"
-	"go-tcp-chat/database"
 	"go-tcp-chat/encrypt"
 	"go-tcp-chat/models"
 	"go-tcp-chat/services"
@@ -98,10 +97,12 @@ func HandleRequest(conn *net.Conn, buffParts []string, currentUser *models.User,
 		if !utils.IsLoggedIn(currentUser) {
 			return utils.LOG_IN_FIRST_MESSAGE, nil
 		}
-		// TODO: achar uma maneira melhor de fazer os replace all e de lidar com os buffParts
-		room, _ := database.GetRoomByName(strings.ReplaceAll(buffParts[1], "\n", ""))
-		msg, _ = services.HandleRoomJoin(*room, *currentUser)
-		err = InsertUserIntoRoom(*currentUser, *room)
+		room, err := services.HandleRoomJoin(buffParts, *currentUser)
+		if err != nil {
+			return "", err
+		}
+
+		err = InsertUserIntoRoom(*currentUser, room)
 		if err != nil {
 			return "", err
 		}
@@ -118,7 +119,7 @@ func HandleRequest(conn *net.Conn, buffParts []string, currentUser *models.User,
 		}
 		return rooms, nil
 
-	case "ENVIAR_MSG":
+	case "ENVIAR_MENSAGEM":
 		if !utils.IsLoggedIn(currentUser) {
 			msg = utils.LOG_IN_FIRST_MESSAGE
 			break

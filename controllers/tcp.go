@@ -47,6 +47,7 @@ func HandleClient(conn net.Conn, a *int) {
 		}
 
 		buffParts[len(buffParts)-1] = strings.ReplaceAll(buffParts[len(buffParts)-1], "\x00", "")
+		buffParts[len(buffParts)-1] = strings.ReplaceAll(buffParts[len(buffParts)-1], "\n", "")
 		msg, err := HandleRequest(&conn, buffParts, &user, &pk, &aesKey, &auth)
 		if err != nil {
 			fmt.Println(err)
