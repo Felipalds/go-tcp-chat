@@ -142,7 +142,12 @@ func HandleRequest(conn *net.Conn, buffParts []string, currentUser *models.User,
 			msg = utils.LOG_IN_FIRST_MESSAGE
 			break
 		}
-		roomName := strings.ReplaceAll(buffParts[1], " ", "")
+		roomName := buffParts[1]
+		roomName = strings.ReplaceAll(roomName, "\n", "")
+
+		if !broadcast.UserIsInRoom(currentUser.Name, roomName) {
+			return "", errors.New("VOCÊ DEVE ESTAR NA SALA PARA ENVIAR A MENSAGEM")
+		}
 		msgTotal := "MENSAGEM " + roomName + " " + currentUser.Name + " "
 		for _, msgPart := range buffParts[2:] {
 			msgTotal += msgPart + " "

@@ -62,14 +62,45 @@ func UpdateClientAES(clientName string, aes []byte) {
 func RemoveRoomFromClient(clientName string, roomName string) {
 	for _, client := range clients {
 		if client.user.Name == clientName {
+			newRooms := make([]models.Room, 0)
+			for i, room := range client.rooms {
+				if room.Name == roomName {
+					client.rooms = append(client.rooms[:i], client.rooms[i+1:]...)
+				}
+			}
+			client.rooms = newRooms
+		}
+	}
+}
+
+func SendMessageToUser(userName string, msg string) error {
+	for _, client := range clients {
+		if client.user.Name == userName {
+			msgEncrypted, err := encrypt.Encrypt([]byte(msg), client.aes)
+			if err != nil {
+				fmt.Println(err)
+			}
+			msgEncrypted += "\n"
+			_, err = fmt.Fprintf(client.conn, msgEncrypted)
+			if err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+func UserIsInRoom(userName string, roomName string) bool {
+	for _, client := range clients {
+		if client.user.Name == userName {
 			for _, room := range client.rooms {
 				if room.Name == roomName {
-					// TODO EXPLAIN THIS??? EXCUSE ME BUT WTF
-					client.rooms = append(client.rooms[:len(client.rooms)-1], client.rooms[len(client.rooms):]...)
+					return true
 				}
 			}
 		}
 	}
+	return false
 }
 
 func CloseRoom(roomName string) {
@@ -83,15 +114,12 @@ func CloseRoom(roomName string) {
 }
 
 func Broadcast(message string, roomName string, sender models.User) error {
-	fmt.Println("message in plaintext: ", message)
-
 	for _, client := range clients {
 		if clientInGroup(*client, roomName) && sender.Name != client.user.Name {
 			msgEncrypted, err := encrypt.Encrypt([]byte(message), client.aes)
 			if err != nil {
 				fmt.Println(err)
 			}
-			fmt.Println("encrypted msg; ", msgEncrypted)
 			msgEncrypted += "\n"
 			_, err = fmt.Fprintf(client.conn, msgEncrypted)
 			if err != nil {

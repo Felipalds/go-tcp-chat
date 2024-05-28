@@ -118,6 +118,11 @@ func HandleBan(buffParts []string, user models.User) error {
 		return err
 	}
 
+	msgToBan := "BANIDO_DA_SALA " + room.Name + " " + user.Name
+	err = broadcast.SendMessageToUser(userToBeBanned.Name, msgToBan)
+	if err != nil {
+		return err
+	}
 	broadcast.RemoveRoomFromClient(userToBeBanned.Name, room.Name)
 
 	return nil
