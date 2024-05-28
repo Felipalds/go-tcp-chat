@@ -20,23 +20,21 @@ func HandleClient(conn net.Conn, a *int) {
 	var auth bool
 	auth = false
 
-	fmt.Println("Handle connection %d", b)
+	fmt.Println("Handle a new connection %d", b)
 	defer conn.Close()
-	//buffer := make([]byte, 2048)
 
 	for {
-		//_, err := conn.Read(buffer)
-		status, err := bufio.NewReader(conn).ReadString('\n')
-		fmt.Println(status)
+		buffStr, err := bufio.NewReader(conn).ReadString('\n')
 		if err != nil {
 			fmt.Println("Error:", err)
 			return
 		}
 
-		buffStr := status
-		fmt.Println(buffStr)
+		fmt.Println("A message received from client: ", buffStr)
+
 		buffStr = strings.Trim(buffStr, "\r\n")
 		buffStr = strings.ReplaceAll(buffStr, "\x00", "")
+
 		if auth {
 			buffStr, err = encrypt.Decrypt(buffStr, aesKey)
 			if err != nil {
@@ -52,23 +50,23 @@ func HandleClient(conn net.Conn, a *int) {
 
 		buffParts[len(buffParts)-1] = strings.ReplaceAll(buffParts[len(buffParts)-1], "\x00", "")
 		buffParts[len(buffParts)-1] = strings.ReplaceAll(buffParts[len(buffParts)-1], "\n", "")
-		msg, err := HandleRequest(&conn, buffParts, &user, &pk, &aesKey, &auth)
-		var encryptErr error
 
+		msg, err := HandleRequest(&conn, buffParts, &user, &pk, &aesKey, &auth)
+		if err != nil {
+			fmt.Println(err)
+			fmt.Fprintf(conn, "ERRO:%s\n", err.Error())
+			return
+		}
+	
 		if auth {
-			msg, encryptErr = encrypt.Encrypt(msg, aesKey)
+			var encryptErr error
+			msg, encryptErr = encrypt.Encrypt([]byte(msg), aesKey)
 			if encryptErr != nil {
 				fmt.Println("Error encrypting msg to client:", err)
 			}
 		}
-
-		if err != nil {
-			fmt.Println(err)
-			fmt.Fprintf(conn, "ERRO:%s\n", err.Error())
-		} else {
-			msg += "\n"
-			fmt.Fprintf(conn, msg)
-		}
-		//buffer = make([]byte, 2048)
+		msg += "\n"
+		fmt.Println("MSG SENT: ", msg)
+		fmt.Fprintf(conn, msg)
 	}
 }
