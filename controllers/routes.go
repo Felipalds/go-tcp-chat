@@ -28,7 +28,7 @@ func HandleRequest(conn *net.Conn, buffParts []string, currentUser *models.User,
 		if err != nil {
 			return "", err
 		}
-		msg = "REGISTRO_OK\n"
+		msg = "REGISTRO_OK"
 	case "AUTENTICACAO":
 		userLoggin, err := services.NewUser(buffParts)
 		if err != nil {
@@ -64,8 +64,10 @@ func HandleRequest(conn *net.Conn, buffParts []string, currentUser *models.User,
 	case "CHAVE_SIMETRICA":
 		aesKeyEncrypted := buffParts[1]
 		*aesKey = encrypt.DecryptAESKey(aesKeyEncrypted, *pk)
+		fmt.Println(aesKey)
 		*auth = true
 		msg = "AUTENTICACAO_OK"
+		break
 	case "SAIR":
 		*currentUser = models.User{}
 		msg = utils.USER_LOGGED_OUT_MESSAGE
