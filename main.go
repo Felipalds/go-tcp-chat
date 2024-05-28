@@ -16,7 +16,7 @@ func main() {
 	a := 0
 
 	// to listen to connections until a message
-	listener, err := net.Listen("tcp", "0.0.0.0:8080")
+	listener, err := net.Listen("tcp", "localhost:8080")
 	if err != nil {
 		fmt.Println("Error creating server", err)
 		return

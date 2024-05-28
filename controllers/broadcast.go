@@ -4,6 +4,7 @@ import (
 	"crypto/rsa"
 	"errors"
 	"fmt"
+	"go-tcp-chat/encrypt"
 	"go-tcp-chat/models"
 	"net"
 	"sync"
@@ -14,6 +15,7 @@ type Client struct {
 	user  models.User
 	rooms []models.Room
 	pk    *rsa.PrivateKey
+	aes   []byte
 }
 
 var (
@@ -23,7 +25,6 @@ var (
 
 func clientInGroup(client Client, roomName string) bool {
 	for _, room := range client.rooms {
-		fmt.Println(room.Name, roomName)
 		if room.Name == roomName {
 			return true
 		}
@@ -32,7 +33,6 @@ func clientInGroup(client Client, roomName string) bool {
 }
 
 func InsertUserIntoRoom(user models.User, room models.Room) error {
-	fmt.Println("HERE2")
 	for _, client := range clients {
 		if client.user.Name == user.Name {
 			client.rooms = append(client.rooms, room)
@@ -53,13 +53,32 @@ func NewClient(conn net.Conn, user models.User, pk *rsa.PrivateKey) {
 	clientsMu.Unlock()
 }
 
-func Broadcast(message []string, roomName string, sender models.User) {
+func UpdateClientAES(clientName string, aes []byte) {
+	for _, client := range clients {
+		if client.user.Name == clientName {
+			client.aes = aes
+		}
+	}
+}
+
+func Broadcast(message string, roomName string, sender models.User) error {
+	fmt.Println("message in plaintext: ", message)
 	clientsMu.Lock()
 	defer clientsMu.Unlock()
 
 	for _, client := range clients {
 		if clientInGroup(*client, roomName) && sender.Name != client.user.Name {
-			fmt.Fprintf(client.conn, "%s\n", message)
+			msgEncrypted, err := encrypt.Encrypt([]byte(message), client.aes)
+			if err != nil {
+				fmt.Println(err)
+			}
+			fmt.Println("encrypted msg; ", msgEncrypted)
+			msgEncrypted += "\n"
+			_, err = fmt.Fprintf(client.conn, msgEncrypted)
+			if err != nil {
+				return err
+			}
 		}
 	}
+	return nil
 }

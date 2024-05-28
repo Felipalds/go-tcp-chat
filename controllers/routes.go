@@ -2,6 +2,7 @@ package controllers
 
 import (
 	"crypto/rsa"
+	"errors"
 	"fmt"
 	"go-tcp-chat/encrypt"
 	"go-tcp-chat/models"
@@ -12,9 +13,13 @@ import (
 )
 
 func HandleRequest(conn *net.Conn, buffParts []string, currentUser *models.User, pk **rsa.PrivateKey, aesKey *[]byte, auth *bool) (string, error) {
+	if !utils.IsRequestValid(buffParts) {
+		return "", errors.New("PARAMETROS INVÁLIDOS")
+	}
 	requestType := strings.ToUpper(buffParts[0])
 	requestType = strings.ReplaceAll(requestType, "\n", "")
 	fmt.Println("Logs for request: ", requestType) //dont remove
+
 	var msg string
 	var err error
 	switch requestType {
@@ -64,9 +69,9 @@ func HandleRequest(conn *net.Conn, buffParts []string, currentUser *models.User,
 	case "CHAVE_SIMETRICA":
 		aesKeyEncrypted := buffParts[1]
 		*aesKey = encrypt.DecryptAESKey(aesKeyEncrypted, *pk)
-		fmt.Println(aesKey)
 		*auth = true
 		msg = "AUTENTICACAO_OK"
+		UpdateClientAES(currentUser.Name, *aesKey)
 		break
 	case "SAIR":
 		*currentUser = models.User{}
@@ -94,6 +99,12 @@ func HandleRequest(conn *net.Conn, buffParts []string, currentUser *models.User,
 		}
 
 		return utils.ROOM_CREATED_SUCCESS_MESSAGE, nil
+
+	//case "BANIR_USUARIO":
+	//	if !utils.IsLoggedIn(currentUser) {
+	//		return utils.LOG_IN_FIRST_MESSAGE, nil
+	//	}
+	//	services.HandleBan(buffParts, *currentUser, room)
 
 	case "ENTRAR_SALA":
 		if !utils.IsLoggedIn(currentUser) {
@@ -127,7 +138,24 @@ func HandleRequest(conn *net.Conn, buffParts []string, currentUser *models.User,
 			break
 		}
 		roomName := strings.ReplaceAll(buffParts[1], " ", "")
-		Broadcast(buffParts[2:], roomName, *currentUser)
+		msgTotal := "MENSAGEM " + roomName + " " + currentUser.Name + " "
+		for _, msgPart := range buffParts[2:] {
+			msgTotal += msgPart + " "
+		}
+
+		err2 := Broadcast(msgTotal, roomName, *currentUser)
+		if err2 != nil {
+			return "", err2
+		}
+		fmt.Println("Message okay")
+		return "MESSAGE_OK", nil
+
+	case "SAIR_SALA":
+		if !utils.IsLoggedIn(currentUser) {
+			msg = utils.LOG_IN_FIRST_MESSAGE
+			break
+		}
+
 	default:
 		msg = "REQUEST INVÁLIDA"
 	}
