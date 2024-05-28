@@ -3,6 +3,7 @@ package services
 import (
 	"errors"
 	"fmt"
+	"go-tcp-chat/broadcast"
 	"go-tcp-chat/database"
 	"go-tcp-chat/models"
 	"go-tcp-chat/utils"
@@ -93,4 +94,70 @@ func GetRooms() (string, error) {
 		msg += room.Name + " "
 	}
 	return msg, nil
+}
+
+func HandleBan(buffParts []string, user models.User) error {
+
+	var userToBeBanned *models.User
+
+	if len(buffParts) < 3 {
+		return errors.New("not enough arguments to ban a user")
+	}
+
+	room, err := database.GetRoomByName(buffParts[1])
+	if err != nil {
+		return err
+	}
+
+	if room.Admin.Name != user.Name {
+		return errors.New("YOU ARE NOT ADMIN")
+	}
+
+	userToBeBanned, err = database.GetUserByName(buffParts[2])
+	if err != nil {
+		return err
+	}
+
+	broadcast.RemoveRoomFromClient(userToBeBanned.Name, room.Name)
+
+	return nil
+}
+
+func HandleLeave(buffParts []string, user models.User) error {
+
+	if len(buffParts) < 2 {
+		return errors.New("not enough arguments to leave a user")
+	}
+
+	room, err := database.GetRoomByName(buffParts[1])
+	if err != nil {
+		return err
+	}
+
+	if room.Admin.Name != user.Name {
+		broadcast.CloseRoom(room.Name)
+	} else {
+		broadcast.RemoveRoomFromClient(user.Name, room.Name)
+	}
+
+	return nil
+
+}
+
+func HandleCloseRoom(buffParts []string, user models.User) error {
+
+	if len(buffParts) < 2 {
+		return errors.New("not enough arguments to ban a user")
+	}
+
+	room, err := database.GetRoomByName(buffParts[1])
+	if err != nil {
+		return err
+	}
+
+	if room.Admin.Name != user.Name {
+		return errors.New("YOU ARE NOT ADMIN")
+	}
+	broadcast.CloseRoom(buffParts[1])
+	return nil
 }

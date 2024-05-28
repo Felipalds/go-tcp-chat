@@ -1,4 +1,4 @@
-package controllers
+package broadcast
 
 import (
 	"crypto/rsa"
@@ -43,14 +43,12 @@ func InsertUserIntoRoom(user models.User, room models.Room) error {
 }
 
 func NewClient(conn net.Conn, user models.User, pk *rsa.PrivateKey) {
-	clientsMu.Lock()
 	var newClient Client
 	newClient.conn = conn
 	newClient.user = user
 	newClient.rooms = make([]models.Room, 0)
 	newClient.pk = pk
 	clients = append(clients, &newClient)
-	clientsMu.Unlock()
 }
 
 func UpdateClientAES(clientName string, aes []byte) {
@@ -61,10 +59,31 @@ func UpdateClientAES(clientName string, aes []byte) {
 	}
 }
 
+func RemoveRoomFromClient(clientName string, roomName string) {
+	for _, client := range clients {
+		if client.user.Name == clientName {
+			for _, room := range client.rooms {
+				if room.Name == roomName {
+					// TODO EXPLAIN THIS??? EXCUSE ME BUT WTF
+					client.rooms = append(client.rooms[:len(client.rooms)-1], client.rooms[len(client.rooms):]...)
+				}
+			}
+		}
+	}
+}
+
+func CloseRoom(roomName string) {
+	for _, client := range clients {
+		for _, room := range client.rooms {
+			if room.Name == roomName {
+				client.rooms = append(client.rooms[:len(client.rooms)-1], client.rooms[len(client.rooms):]...)
+			}
+		}
+	}
+}
+
 func Broadcast(message string, roomName string, sender models.User) error {
 	fmt.Println("message in plaintext: ", message)
-	clientsMu.Lock()
-	defer clientsMu.Unlock()
 
 	for _, client := range clients {
 		if clientInGroup(*client, roomName) && sender.Name != client.user.Name {

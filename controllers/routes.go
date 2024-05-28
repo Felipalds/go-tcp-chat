@@ -4,6 +4,7 @@ import (
 	"crypto/rsa"
 	"errors"
 	"fmt"
+	"go-tcp-chat/broadcast"
 	"go-tcp-chat/encrypt"
 	"go-tcp-chat/models"
 	"go-tcp-chat/services"
@@ -54,7 +55,7 @@ func HandleRequest(conn *net.Conn, buffParts []string, currentUser *models.User,
 		}
 
 		*pk = privateKey
-		NewClient(*conn, *userLogged, privateKey)
+		broadcast.NewClient(*conn, *userLogged, privateKey)
 
 		encodedKey, err2 := encrypt.EncodePublicToBase64(privateKey)
 		if err2 != nil {
@@ -71,7 +72,7 @@ func HandleRequest(conn *net.Conn, buffParts []string, currentUser *models.User,
 		*aesKey = encrypt.DecryptAESKey(aesKeyEncrypted, *pk)
 		*auth = true
 		msg = "AUTENTICACAO_OK"
-		UpdateClientAES(currentUser.Name, *aesKey)
+		broadcast.UpdateClientAES(currentUser.Name, *aesKey)
 		break
 	case "SAIR":
 		*currentUser = models.User{}
@@ -93,18 +94,22 @@ func HandleRequest(conn *net.Conn, buffParts []string, currentUser *models.User,
 			return "", err
 		}
 
-		err = InsertUserIntoRoom(*currentUser, room)
+		err = broadcast.InsertUserIntoRoom(*currentUser, room)
 		if err != nil {
 			return "", err
 		}
 
 		return utils.ROOM_CREATED_SUCCESS_MESSAGE, nil
 
-	//case "BANIR_USUARIO":
-	//	if !utils.IsLoggedIn(currentUser) {
-	//		return utils.LOG_IN_FIRST_MESSAGE, nil
-	//	}
-	//	services.HandleBan(buffParts, *currentUser, room)
+	case "BANIR_USUARIO":
+		if !utils.IsLoggedIn(currentUser) {
+			return utils.LOG_IN_FIRST_MESSAGE, nil
+		}
+		err = services.HandleBan(buffParts, *currentUser)
+		if err != nil {
+			return "", err
+		}
+		return "BANIMENTO_OK", nil
 
 	case "ENTRAR_SALA":
 		if !utils.IsLoggedIn(currentUser) {
@@ -115,7 +120,7 @@ func HandleRequest(conn *net.Conn, buffParts []string, currentUser *models.User,
 			return "", err
 		}
 
-		err = InsertUserIntoRoom(*currentUser, room)
+		err = broadcast.InsertUserIntoRoom(*currentUser, room)
 		if err != nil {
 			return "", err
 		}
@@ -143,8 +148,9 @@ func HandleRequest(conn *net.Conn, buffParts []string, currentUser *models.User,
 			msgTotal += msgPart + " "
 		}
 
-		err2 := Broadcast(msgTotal, roomName, *currentUser)
+		err2 := broadcast.Broadcast(msgTotal, roomName, *currentUser)
 		if err2 != nil {
+			fmt.Println(err2)
 			return "", err2
 		}
 		fmt.Println("Message okay")
@@ -154,6 +160,27 @@ func HandleRequest(conn *net.Conn, buffParts []string, currentUser *models.User,
 		if !utils.IsLoggedIn(currentUser) {
 			msg = utils.LOG_IN_FIRST_MESSAGE
 			break
+		}
+		err = services.HandleLeave(buffParts, *currentUser)
+		if err != nil {
+			return "", err
+		}
+
+		msgLeave := "SAIU " + currentUser.Name + " " + buffParts[1]
+		err = broadcast.Broadcast(msgLeave, buffParts[1], *currentUser)
+		if err != nil {
+			return "", err
+		}
+		return "SAIR_SALA_OK", nil
+
+	case "FECHAR_SALA":
+		if !utils.IsLoggedIn(currentUser) {
+			msg = utils.LOG_IN_FIRST_MESSAGE
+			break
+		}
+		err = services.HandleCloseRoom(buffParts, *currentUser)
+		if err != nil {
+			return "", nil
 		}
 
 	default:
