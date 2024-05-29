@@ -105,11 +105,13 @@ func UserIsInRoom(userName string, roomName string) bool {
 
 func CloseRoom(roomName string) {
 	for _, client := range clients {
-		for _, room := range client.rooms {
+		for i, room := range client.rooms {
 			if room.Name == roomName {
-				client.rooms = append(client.rooms[:len(client.rooms)-1], client.rooms[len(client.rooms):]...)
+				client.rooms = append(client.rooms[:i], client.rooms[i+1:]...)
 			}
 		}
+		msg := "SALA_FECHADA " + roomName
+		SendMessageToUser(client.user.Name, msg)
 	}
 }
 

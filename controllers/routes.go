@@ -184,7 +184,7 @@ func HandleRequest(conn *net.Conn, buffParts []string, currentUser *models.User,
 		}
 		err = services.HandleCloseRoom(buffParts, *currentUser)
 		if err != nil {
-			return "", nil
+			return "", err
 		}
 
 	default:
