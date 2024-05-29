@@ -65,7 +65,10 @@ func HandleRoomJoin(buffParts []string, user models.User) (models.Room, error) {
 	roomName = strings.ReplaceAll(roomName, "\n", "")
 
 	existedRoom, err := database.GetRoomByName(roomName)
-	if existedRoom == nil || err != nil {
+	if err != nil {
+		return room, err
+	}
+	if existedRoom == nil {
 		return room, errors.New(utils.ROOM_DOES_NOT_EXISTS_MESSAGE)
 	}
 	room = *existedRoom

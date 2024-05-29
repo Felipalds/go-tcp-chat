@@ -79,7 +79,6 @@ func HandleRequest(conn *net.Conn, buffParts []string, currentUser *models.User,
 		msg = utils.USER_LOGGED_OUT_MESSAGE
 
 	case "CRIAR_SALA":
-		fmt.Println("Criando sala...")
 		if !utils.IsLoggedIn(currentUser) {
 			return utils.LOG_IN_FIRST_MESSAGE, nil
 		}
